@@ -523,7 +523,7 @@ class OctoWowApp(BaseApp):
         self.vt_dep_fix = ctk.BooleanVar(value=t_conf.get('vt_dep_fix', True))
         self.vt_corrupt_bypass = ctk.BooleanVar(value=t_conf.get('vt_corrupt_bypass', True))
         
-        self.safety_override = ctk.BooleanVar(value=False)
+        self.safety_override = ctk.BooleanVar(value=self.config.get('safety_override', False))
 
         if self.vt_fov.get() == 0: self.on_ratio_change()
 
@@ -579,6 +579,7 @@ class OctoWowApp(BaseApp):
         self.config.set('plugin_sources', {k: v.get() for k, v in self.plugin_sources.items()})
         self.config.set('tracked_addons', self.tracked_addons)
         self.config.set('game_mods_meta', self.game_mods_meta)
+        self.config.set('safety_override', self.safety_override.get())
         self.config.set('tweaks', {
             'vt_fov': self.vt_fov.get(), 'ratio_var': self.ratio_var.get(), 'vt_farclip': self.vt_farclip.get(),
             'vt_frill': self.vt_frill.get(), 'vt_nameplate': self.vt_nameplate.get(), 'vt_soundchan': self.vt_soundchan.get(),
