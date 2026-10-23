@@ -1,0 +1,254 @@
+{
+ "release": "v1.2.7",
+ "notes": "**OctoWoW HD 1.2.7: no more broken faces after toggling, High Elf eyes like the men's**\n\n- **Broken faces after turning the HD packs off or on are fixed.** Your character's skin stayed in the previous pack's version (for example the HD skin on OctoWoW's own model after turning everything off) until you logged out. Now every skin part is refreshed right away.\n- **High Elf women's eyes** now look like Project Reforged's High Elf men: the glowing cyan eye with a soft light in front of it, fading as the eyelids close (Little Extra and Little Extra Less).\n- **Installer 1.2.1** removes a second `HDToggle.dll` line from `dlls.txt` left by an old manual install (it loaded two copies of HD Switch, and `/hd check` could not work after an update).\n- **Troubleshooting:** put `debug=2` under `[HDToggle]` in `mods\\HDToggle.ini` for a detailed `mods\\HDToggle.log`.\n- Our packs now download from our own server; nothing changes for you.\n\nReopen the installer: it updates itself, then click **Update** on HD Switch and on the packs (HD Switch, Little Extra Less and Little Extra changed).\n\n**Credits:** Project Reforged by Stormhand81 and contributors; Twow Raid Visuals by MarcelineVQ; A Little Extra by Watchers3D (High Elf animations by Starrfury) and its Less Thicc version by Deezhugs; A Little Extra Retextured by Necropheus. Full credits in the [README](https://github.com/fmustafayaman/OctoWoW-HD-Switch#packs-we-modified).\n\n**Downloads:** `OctoWoW-HD-Installer_1.2.1_Windows-x64-setup.exe` (Windows) or `OctoWoW-HD-Installer_1.2.1_macOS-arm64.dmg` (macOS, Apple Silicon); if you already have the installer, just open it. For a manual HD Switch install use `OctoWoW-HD-Switch-v1.2.7.zip`.\n",
+ "components": [
+  {
+   "id": "hdswitch",
+   "name": "HD Switch",
+   "version": "1.2.7",
+   "description": "Turn your HD packs on and off from inside the game, without restarting, and check that your packs are exactly the supported ones (/hd check). It works with any letter packs, but only the OctoWoW HD packs below are tested and supported.",
+   "dll_line": "mods/HDToggle.dll",
+   "files": [
+    {
+     "asset": "HDToggle.dll",
+     "dest": "mods/HDToggle.dll",
+     "sha256": "8fa2cb6375241dafb4c44988b21833fa7adb3480aff7ff3fb880185c539b8aa5",
+     "size": 84480
+    },
+    {
+     "asset": "HDSwitch-HDSwitch.toc",
+     "dest": "Interface/AddOns/HDSwitch/HDSwitch.toc",
+     "sha256": "4dfe73cf3c6689b496d5ed7a5d94abae305889369829d426ba4a960ab3247500",
+     "size": 313
+    },
+    {
+     "asset": "HDSwitch-PackRefs.lua",
+     "dest": "Interface/AddOns/HDSwitch/PackRefs.lua",
+     "sha256": "63f452e33321d8f7549ca76176131212bbbf4a0377a25c22c56ec4d17398d61f",
+     "size": 2795
+    },
+    {
+     "asset": "HDSwitch-HDSwitch.lua",
+     "dest": "Interface/AddOns/HDSwitch/HDSwitch.lua",
+     "sha256": "ffbdb3caf7f96a8e5d7971351d7dad2c6f5ae76038bea766d11e7ec92bfc8ec4",
+     "size": 20203
+    },
+    {
+     "asset": "HDSwitch-Bindings.xml",
+     "dest": "Interface/AddOns/HDSwitch/Bindings.xml",
+     "sha256": "e0fe41cf09308bf37e71b0c32d714d5b135cb9e06ecd484013b9d4b8139b8fa8",
+     "size": 174
+    }
+   ]
+  },
+  {
+   "id": "packs",
+   "name": "OctoWoW HD packs",
+   "version": "1.2.7",
+   "description": "The supported setup, the same files byte for byte for everyone: Project Reforged A, B, C, D, E, G, I, M, P, S and T (downloaded from Project Reforged), Twow Raid Visuals, slimmer female models, fixes for defects in the packs (invisible trees, white surfaces, an invisible creature) and the merged game tables.",
+   "credits": "Project Reforged by Stormhand81 and contributors. Twow Raid Visuals by MarcelineVQ. Female models: A Little Extra for Females, Less Thicc Version by Deezhugs, on Watchers3D's A Little Extra (High Elf animations by Starrfury). Full credits in the README.",
+   "files": [
+    {
+     "asset": "patch-O.mpq",
+     "dest": "Data/patch-O.mpq",
+     "sha256": "6f1f88d688247c1221af478a38651ffd6df8d66c4493ec82824e632f3ac64278",
+     "size": 9315256,
+     "url": "https://pub-a854abaa40ad406a86b1fc6390dd259c.r2.dev/v1.2.7/patch-O.mpq"
+    },
+    {
+     "asset": "patch-Z.mpq",
+     "dest": "Data/patch-Z.mpq",
+     "sha256": "505b6fadbbdcde4df0bc04077148eee3ac240798a599095f5c584f0df379db83",
+     "size": 287750,
+     "url": "https://pub-a854abaa40ad406a86b1fc6390dd259c.r2.dev/v1.2.7/patch-Z.mpq"
+    },
+    {
+     "asset": "Patch-F.mpq",
+     "dest": "Data/Patch-F.mpq",
+     "sha256": "6d63eee2f45794580be33b007d598abf8ae1acca4660eef5f98984db03a67cbd",
+     "size": 55948859,
+     "url": "https://pub-a854abaa40ad406a86b1fc6390dd259c.r2.dev/v1.2.7/Patch-F.mpq"
+    },
+    {
+     "asset": "Patch-H.mpq",
+     "dest": "Data/Patch-H.mpq",
+     "sha256": "62ea1916602d9b87c9beb3ea1a35ff027193275ebde973a8ffa09694907cb224",
+     "size": 30430255,
+     "url": "https://pub-a854abaa40ad406a86b1fc6390dd259c.r2.dev/v1.2.7/Patch-H.mpq"
+    },
+    {
+     "asset": "patch-P.mpq",
+     "dest": "Data/patch-P.mpq",
+     "sha256": "7d0f4d22362bc0923f1802980f0c18e09964a2021c79ea604dbdc6d51b550399",
+     "size": 7272085,
+     "url": "https://pub-0f05631d243e4046993fc02ca7be9542.r2.dev/patches/patch-P.mpq",
+     "source": "Project Reforged"
+    },
+    {
+     "asset": "patch-I.mpq",
+     "dest": "Data/patch-I.mpq",
+     "sha256": "16f7e45adbcff14dd635d30fc058ce4dca4ea832c66a41aeedc284506870bbd3",
+     "size": 162091469,
+     "url": "https://pub-0f05631d243e4046993fc02ca7be9542.r2.dev/patches/patch-I.mpq",
+     "source": "Project Reforged"
+    },
+    {
+     "asset": "patch-S.mpq",
+     "dest": "Data/patch-S.mpq",
+     "sha256": "328d683683eea6d4237b6c5a86abc0a2049fbf9fe4a05ced8901b9d9e28d5bc5",
+     "size": 262721653,
+     "url": "https://pub-0f05631d243e4046993fc02ca7be9542.r2.dev/patches/patch-S.mpq",
+     "source": "Project Reforged"
+    },
+    {
+     "asset": "patch-M.mpq",
+     "dest": "Data/patch-M.mpq",
+     "sha256": "088652f39568d9a891679f67c142f35186c483b3ed9984faaf78f8d59c40aabf",
+     "size": 438564005,
+     "url": "https://pub-0f05631d243e4046993fc02ca7be9542.r2.dev/patches/patch-M.mpq",
+     "source": "Project Reforged"
+    },
+    {
+     "asset": "patch-T.mpq",
+     "dest": "Data/patch-T.mpq",
+     "sha256": "7a0e46eb84df229bfff2b36f481a08ee62f0f30091fa07e0558ccee0b366c3f4",
+     "size": 541957195,
+     "url": "https://pub-0f05631d243e4046993fc02ca7be9542.r2.dev/patches/extras/patch-T.mpq",
+     "source": "Project Reforged"
+    },
+    {
+     "asset": "patch-E.mpq",
+     "dest": "Data/patch-E.mpq",
+     "sha256": "7944a61ce1a3bd66a46a2eb05ab94ae99887d494092fa8ade0e5b79b66c2855d",
+     "size": 719685533,
+     "url": "https://pub-0f05631d243e4046993fc02ca7be9542.r2.dev/patches/patch-E.mpq",
+     "source": "Project Reforged"
+    },
+    {
+     "asset": "patch-G.mpq",
+     "dest": "Data/patch-G.mpq",
+     "sha256": "6100c54ac0e8729f76d3f276881789175c6cd2899107d6fa3a6e4d0d66937df4",
+     "size": 774538222,
+     "url": "https://pub-0f05631d243e4046993fc02ca7be9542.r2.dev/patches/patch-G.mpq",
+     "source": "Project Reforged"
+    },
+    {
+     "asset": "patch-B.mpq",
+     "dest": "Data/patch-B.mpq",
+     "sha256": "82758e1b95eb8fabd5defe7de35ae9babb1102e9d4bbf740dcdcbfd9a2fe1d01",
+     "size": 1608961816,
+     "url": "https://pub-0f05631d243e4046993fc02ca7be9542.r2.dev/patches/patch-B.mpq",
+     "source": "Project Reforged"
+    },
+    {
+     "asset": "patch-D.mpq",
+     "dest": "Data/patch-D.mpq",
+     "sha256": "ab46954bf0bbf0fa83ad0b0a3ab56f4392860b2d526b3275ba584ace420e5b06",
+     "size": 1648472586,
+     "url": "https://pub-0f05631d243e4046993fc02ca7be9542.r2.dev/patches/patch-D.mpq",
+     "source": "Project Reforged"
+    },
+    {
+     "asset": "patch-A.mpq",
+     "dest": "Data/patch-A.mpq",
+     "sha256": "d20a2480d322339fc8319d3a6922a895a189c7a9d6a39134d44731cc9e8927bb",
+     "size": 1748152913,
+     "url": "https://pub-0f05631d243e4046993fc02ca7be9542.r2.dev/patches/patch-A.mpq",
+     "source": "Project Reforged"
+    },
+    {
+     "asset": "patch-C.mpq",
+     "dest": "Data/patch-C.mpq",
+     "sha256": "74557dfc1e82da9b66525a925ff49d36029b1a5612391e529e42c4d7ad0db48b",
+     "size": 2083036611,
+     "url": "https://pub-0f05631d243e4046993fc02ca7be9542.r2.dev/patches/patch-C.mpq",
+     "source": "Project Reforged"
+    }
+   ]
+  },
+  {
+   "id": "nude",
+   "name": "Nude skins (18+)",
+   "version": "1.0.0",
+   "nsfw": true,
+   "description": "4× nude skins for Night Elf, Human, Troll and High Elf women.",
+   "credits": "A Little Extra Retextured by Necropheus. Missing Forest Troll parts added by HD Switch.",
+   "files": [
+    {
+     "asset": "Patch-Y.mpq",
+     "dest": "Data/Patch-Y.mpq",
+     "sha256": "03df0aef824fc71c9d9bd7196f90d906807f5d59a738fae0550111f368f55b82",
+     "size": 50219767,
+     "url": "https://pub-a854abaa40ad406a86b1fc6390dd259c.r2.dev/v1.2.7/Patch-Y.mpq"
+    }
+   ]
+  },
+  {
+   "id": "female-full",
+   "name": "Little Extra",
+   "version": "1.3.0",
+   "description": "The original A Little Extra bodies for Night Elf, Human, Troll and High Elf women instead of the slimmer Little Extra Less ones in the OctoWoW HD packs, with the faces fitted to the HD textures. Remove it to go back to Little Extra Less.",
+   "credits": "A Little Extra by Watchers3D (High Elf animations by Starrfury).",
+   "files": [
+    {
+     "asset": "Patch-X.mpq",
+     "dest": "Data/Patch-X.mpq",
+     "sha256": "c5b106ac8ef62e0c2f010cb19393a438f46a1cee5b70a5354973c4e3fda95fb6",
+     "size": 51658668,
+     "url": "https://pub-a854abaa40ad406a86b1fc6390dd259c.r2.dev/v1.2.7/Patch-X.mpq"
+    }
+   ]
+  },
+  {
+   "id": "bikini",
+   "name": "Bikini armor",
+   "version": "1.0.0",
+   "description": "Revealing versions of many chest and leg armor textures, 4× resolution. Female textures, plus a few unisex ones (Bloodfang sleeves and pants, some leather chests and pants) that also show on men.",
+   "credits": "A Little Extra by Watchers3D.",
+   "files": [
+    {
+     "asset": "Patch-W.mpq",
+     "dest": "Data/Patch-W.mpq",
+     "sha256": "8a6d643851ce5fc0f4fc6526e34bd9596b6be21862a1cd6c8faf44a83012508a",
+     "size": 10503433,
+     "url": "https://pub-a854abaa40ad406a86b1fc6390dd259c.r2.dev/v1.2.7/Patch-W.mpq"
+    }
+   ]
+  },
+  {
+   "id": "ultra",
+   "name": "Ultra HD",
+   "version": "1.0.0",
+   "replaces": [
+    "Data/patch-T.mpq"
+   ],
+   "description": "Project Reforged's 4x character and armor textures (U) with its Ultra-base T in place of the standard T, plus our fixes for U (black goblin faces). Needs more video memory. Remove it to go back to the standard T.",
+   "credits": "Project Reforged by Stormhand81 and contributors.",
+   "files": [
+    {
+     "asset": "patch-T-ultra.mpq",
+     "dest": "Data/patch-T.mpq",
+     "sha256": "f18553b0e1318b3d3e58c52c24f839bd43a39f86d2798a312256e6c066ece05d",
+     "size": 499342621,
+     "url": "https://pub-0f05631d243e4046993fc02ca7be9542.r2.dev/patches/patch-T.mpq",
+     "source": "Project Reforged"
+    },
+    {
+     "asset": "patch-U.mpq",
+     "dest": "Data/patch-U.mpq",
+     "sha256": "b768b829d6042dae6928fd95c41704907fe2ce4c952b54b9e8350b37c0537215",
+     "size": 1662548731,
+     "url": "https://pub-0f05631d243e4046993fc02ca7be9542.r2.dev/patches/patch-U.mpq",
+     "source": "Project Reforged"
+    },
+    {
+     "asset": "Patch-V.mpq",
+     "dest": "Data/Patch-V.mpq",
+     "sha256": "7408cb6f7cbe76e755737c97cdcacc28b6be6fb153ec2ddf95f7bd4a187d061f",
+     "size": 15515,
+     "url": "https://pub-a854abaa40ad406a86b1fc6390dd259c.r2.dev/v1.2.7/Patch-V.mpq"
+    }
+   ]
+  }
+ ]
+}

@@ -17,6 +17,12 @@ import tempfile
 import webbrowser
 import stat
 import concurrent.futures
+from contextlib import nullcontext
+from pathlib import Path
+
+import game_mods
+import game_mods_ui
+import hd_source
 import tkinter as tk
 from tkinter import filedialog, messagebox
 import customtkinter as ctk
@@ -33,15 +39,6 @@ except ImportError:
 CLIENT_ZIP_URL = "https://your-server.com/OctoWoW_Client.zip" # <-- CHANGE THIS TO YOUR ACTUAL CLIENT ZIP URL
 CONFIG_FILE = "octowow_config.json"
 VERSION = "2.6.0"
-
-# Standard Vanilla 1.12 MPQ files that should be ignored by the Game Mods manager
-BASE_MPQ_BLACKLIST = {
-    "backup.mpq", "base.mpq", "dbc.mpq", "fonts.mpq", "interface.mpq", 
-    "misc.mpq", "model.mpq", "patch.mpq", "patch-1.mpq", "patch-2.mpq", 
-    "patch-3.mpq", "patch-4.mpq", "patch-5.mpq", "patch-6.mpq", "patch-7.mpq", 
-    "patch-8.mpq", "patch-9.mpq", "patch-a.mpq", "sound.mpq", "speech.mpq", 
-    "terrain.mpq", "texture.mpq", "wmo.mpq"
-}
 
 # --- THEME COLORS ---
 BG_COLOR = "#0B0F19"         
@@ -413,15 +410,12 @@ class OctoWowApp(BaseApp):
         self.addon_cards = []
         self.is_scanning_addons = False
         
-        self.pending_mpqs = []
-        self.mpq_temp_dir = os.path.join(get_persist_path(), "temp_mpq_extraction")
-        if os.path.exists(self.mpq_temp_dir): shutil.rmtree(self.mpq_temp_dir, ignore_errors=True)
-        
         self.init_variables()
         self.build_ui()
         self.after(100, self.process_queue)
         self.trigger_addon_scan(show_loading=False)
         self.check_app_updates()
+        self.protocol("WM_DELETE_WINDOW", self.close_app)
 
     def init_variables(self):
         self.descriptions = {
@@ -665,6 +659,9 @@ class OctoWowApp(BaseApp):
             self.frames[tab_name].grid(row=0, column=0, sticky="nsew")
             
         self.current_tab = tab_name
+        button = self.nav_btns.get("GameMods")
+        if button and getattr(button, "_mods_icon", None):
+            button._mods_icon.configure(bg=ACCENT_COLOR if tab_name == "GameMods" else SURFACE_COLOR)
         
     def check_app_updates(self):
         def worker():
@@ -794,6 +791,29 @@ class OctoWowApp(BaseApp):
         return aria_path
 
     def _sync_client_thread(self, target_dir, new_hash=None, is_new_install=False):
+        try:
+            store = (
+                self.get_game_mod_store(target_dir)
+                if os.path.isfile(os.path.join(target_dir, "WoW.exe"))
+                else None
+            )
+            operation_lock = store.lock("updating server files") if store else nullcontext()
+            with operation_lock:
+                if store:
+                    store.guard()
+                success = self._sync_client_files(target_dir, new_hash, is_new_install)
+            if success:
+                self.msg_queue.put(
+                    (
+                        "client_dl_file",
+                        "Game update finished. Verify managed mods for replaced files.",
+                    )
+                )
+                self.msg_queue.put(("client_dl_done", is_new_install))
+        except Exception as exc:
+            self.msg_queue.put(("client_dl_error", str(exc)))
+
+    def _sync_client_files(self, target_dir, new_hash=None, is_new_install=False):
         try:
             temp_dir = os.path.join(get_persist_path(), "temp_download")
             os.makedirs(temp_dir, exist_ok=True)
@@ -945,7 +965,7 @@ class OctoWowApp(BaseApp):
             if proc.returncode == 0:
                 if new_hash:
                     self.config.set('client_hash', new_hash)
-                self.msg_queue.put(("client_dl_done", is_new_install))
+                return True
             else:
                 self.msg_queue.put(("client_dl_error", f"Update failed (aria2c error code {proc.returncode})"))
         except Exception as e:
@@ -1124,120 +1144,64 @@ class OctoWowApp(BaseApp):
             self.refresh_custom_dlls_ui()
 
     # --- GAME MODS TAB (MPQ MANAGER) ---
+    def get_game_mod_store(self, target_dir):
+        return game_mods.Store(target_dir, lambda: hd_source.game_running(target_dir))
+
+    def validate_game_mod_requirements(self, target_dir):
+        store = self.get_game_mod_store(target_dir)
+        store.guard()
+        for mod in store.state()["mods"].values():
+            if not mod.get("enabled", True):
+                continue
+            for dll in mod.get("requires_dlls", []):
+                plugin_var = (
+                    self.core_plugins.get(dll)
+                    or self.optional_plugins.get(dll)
+                    or self.custom_plugins.get(dll)
+                )
+                if plugin_var is not None and not plugin_var.get():
+                    raise game_mods.ModError(
+                        mod["name"]
+                        + " requires "
+                        + dll
+                        + ". Disable the mod before disabling its plugin."
+                    )
+            if mod.get("requires_laa") and not self.vt_laa.get():
+                raise game_mods.ModError(
+                    mod["name"] + " requires Large Address Aware. Disable the mod first."
+                )
+
+    def close_app(self):
+        if self.mods_panel.can_close():
+            self.destroy()
+
     def build_game_mods_tab(self):
-        frame = ctk.CTkFrame(self.main_container, fg_color=BG_COLOR)
-        self.frames["GameMods"] = frame
+        context = {
+            "ctk": ctk,
+            "tk": tk,
+            "messagebox": messagebox,
+            "filedialog": filedialog,
+            "SmoothScrollableFrame": SmoothScrollableFrame,
+            "CTkToolTip": CTkToolTip,
+            "get_persist_path": get_persist_path,
+            "BG_COLOR": BG_COLOR,
+            "SURFACE_COLOR": SURFACE_COLOR,
+            "CARD_COLOR": CARD_COLOR,
+            "ACCENT_COLOR": ACCENT_COLOR,
+            "ACCENT_HOVER": ACCENT_HOVER,
+            "TEXT_MAIN": TEXT_MAIN,
+            "TEXT_MUTED": TEXT_MUTED,
+            "SUCCESS_COLOR": SUCCESS_COLOR,
+            "WARNING_COLOR": WARNING_COLOR,
+            "ERROR_COLOR": ERROR_COLOR,
+        }
+        self.mods_panel = game_mods_ui.GameModsPanel(self, context)
 
-        top = ctk.CTkFrame(frame, fg_color="transparent")
-        top.pack(fill="x", padx=10, pady=(10, 15))
-        
-        ctk.CTkLabel(top, text="Game Mods", font=("Segoe UI", 24, "bold"), text_color=TEXT_MAIN).pack(side="left")
-        ctk.CTkButton(top, text="➕ Add Mod (MPQ/ZIP)", fg_color=ACCENT_COLOR, hover_color=ACCENT_HOVER, font=("Segoe UI", 12, "bold"), command=self.add_game_mod).pack(side="right")
-        
-        sub_text = "Manage custom MPQ modifications. Drag and drop .mpq or .zip files anywhere to install." if HAS_DND else "Manage custom MPQ modifications. (Install tkinterdnd2 for Drag & Drop support)."
-        ctk.CTkLabel(frame, text=sub_text, text_color=TEXT_MUTED).pack(anchor="w", padx=10, pady=(0, 15))
-
-        self.game_mods_scroll = SmoothScrollableFrame(frame, fg_color="transparent")
-        self.game_mods_scroll.pack(fill="both", expand=True, padx=5)
-        
-        self.scan_game_mods()
 
     def scan_game_mods(self):
-        wow_dir = self.wow_dir.get().strip()
-        data_dir = os.path.join(wow_dir, "Data")
-        
-        for widget in self.game_mods_scroll.winfo_children(): widget.destroy()
-        
-        if not wow_dir or not os.path.exists(data_dir):
-            lbl = ctk.CTkLabel(self.game_mods_scroll, text="Please set a valid WoW directory in Game Settings to manage MPQs.", text_color=TEXT_MUTED)
-            lbl.pack(pady=40)
-            return
-            
-        custom_mpqs = []
-        for f in os.listdir(data_dir):
-            low = f.lower()
-            if low in BASE_MPQ_BLACKLIST: continue
-            
-            if low.endswith('.mpq') or low.endswith('.mpq.disabled'):
-                base_name = f if low.endswith('.mpq') else f[:-9] 
-                is_enabled = low.endswith('.mpq')
-                custom_mpqs.append((base_name, f, is_enabled))
-                
-        if not custom_mpqs:
-            lbl = ctk.CTkLabel(self.game_mods_scroll, text="No custom Game Mods found in your Data folder.", text_color=TEXT_MUTED)
-            lbl.pack(pady=40)
-            return
+        if hasattr(self, "mods_panel"):
+            self.mods_panel.refresh()
 
-        for base_name, actual_name, is_enabled in sorted(custom_mpqs, key=lambda x: x[0].lower()):
-            self.create_game_mod_card(base_name, actual_name, is_enabled)
-
-    def create_game_mod_card(self, base_name, actual_name, is_enabled):
-        meta = self.game_mods_meta.get(base_name, {})
-        title = meta.get("title", base_name)
-        desc = meta.get("desc", "No description provided.")
-
-        card = ctk.CTkFrame(self.game_mods_scroll, fg_color=SURFACE_COLOR, corner_radius=8)
-        card.pack(fill="x", padx=5, pady=6)
-        
-        info_frame = ctk.CTkFrame(card, fg_color="transparent")
-        info_frame.pack(side="left", fill="both", expand=True, padx=15, pady=12)
-        
-        title_lbl = ctk.CTkLabel(info_frame, text=title, font=("Segoe UI", 15, "bold"), text_color=TEXT_MAIN)
-        title_lbl.pack(anchor="w")
-        
-        ctk.CTkLabel(info_frame, text=f"File: {base_name}", font=("Segoe UI", 11), text_color=TEXT_MUTED).pack(anchor="w", pady=(0, 4))
-        ctk.CTkLabel(info_frame, text=desc, font=("Segoe UI", 12), text_color=TEXT_MAIN, wraplength=500, justify="left").pack(anchor="w")
-
-        btn_frame = ctk.CTkFrame(card, fg_color="transparent")
-        btn_frame.pack(side="right", padx=15, pady=15)
-        
-        var = ctk.BooleanVar(value=is_enabled)
-        
-        def on_toggle(*args, bn=base_name, an=actual_name, v=var):
-            target_name = bn if v.get() else bn + ".disabled"
-            if an != target_name:
-                wow_dir = self.wow_dir.get().strip()
-                old_path = os.path.join(wow_dir, "Data", an)
-                new_path = os.path.join(wow_dir, "Data", target_name)
-                try:
-                    os.rename(old_path, new_path)
-                    self.scan_game_mods() 
-                except Exception as e:
-                    messagebox.showerror("Rename Error", f"Could not toggle {bn}.\n{e}")
-                    v.set(not v.get())
-
-        sw = ctk.CTkSwitch(btn_frame, text="Enabled", variable=var, command=on_toggle, text_color=TEXT_MAIN, progress_color=SUCCESS_COLOR)
-        sw.pack(side="left", padx=(0, 15))
-        
-        btn_edit = ctk.CTkButton(btn_frame, text="✏️", font=("Segoe UI Emoji", 14), width=32, height=32, corner_radius=16, 
-                                 fg_color=CARD_COLOR, hover_color="#2A2E3F", command=lambda: self.prompt_mpq_meta(base_name, os.path.join(self.wow_dir.get(), "Data", actual_name), True))
-        btn_edit.pack(side="left", padx=(0, 10))
-        CTkToolTip(btn_edit, "Edit Details")
-
-        btn_del = ctk.CTkButton(btn_frame, text="🗑", font=("Segoe UI Emoji", 14), width=32, height=32, corner_radius=16, 
-                                fg_color=ERROR_COLOR, hover_color="#DC2626", command=lambda: self.delete_game_mod(base_name, actual_name))
-        btn_del.pack(side="left")
-        CTkToolTip(btn_del, "Delete MPQ File")
-
-    def delete_game_mod(self, base_name, actual_name):
-        if messagebox.askyesno("Confirm Delete", f"Are you sure you want to permanently delete {actual_name}?"):
-            path = os.path.join(self.wow_dir.get().strip(), "Data", actual_name)
-            try:
-                if os.path.exists(path): os.remove(path)
-                if base_name in self.game_mods_meta:
-                    del self.game_mods_meta[base_name]
-                    self.save_all_state()
-                self.scan_game_mods()
-            except Exception as e:
-                messagebox.showerror("Error", f"Failed to delete file:\n{e}")
-
-    def add_game_mod(self):
-        if not self.wow_dir.get().strip() or not os.path.exists(os.path.join(self.wow_dir.get(), "Data")):
-            messagebox.showerror("Error", "Please set a valid WoW directory in Game Settings first.")
-            return
-            
-        files = filedialog.askopenfilenames(title="Select Game Mod (MPQ or ZIP)", filetypes=[("Mod Files", "*.mpq *.zip"), ("All Files", "*.*")])
-        if files: self.handle_file_drop_list(files)
 
     def handle_file_drop(self, event):
         files = self.tk.splitlist(event.data)
@@ -1247,35 +1211,37 @@ class OctoWowApp(BaseApp):
     def handle_file_drop_list(self, files):
         wow_dir = self.wow_dir.get().strip()
         if not wow_dir or not os.path.exists(os.path.join(wow_dir, "WoW.exe")):
-            messagebox.showerror("Error", "Please set a valid WoW directory in Game Settings first.")
+            messagebox.showerror(
+                "Error", "Please set a valid WoW directory in Game Settings first."
+            )
             return
 
-        mpqs, dlls, zips = [], [], []
-        for f in files:
-            low = f.lower()
-            if low.endswith(".mpq"): mpqs.append(f)
-            elif low.endswith(".dll"): dlls.append(f)
-            elif low.endswith(".zip"): zips.append(f)
-
-        if mpqs:
+        mod_files, dlls, addon_zips = [], [], []
+        try:
+            for filename in files:
+                low = filename.lower()
+                if low.endswith(".mpq") or (
+                    low.endswith(".zip") and game_mods.zip_contains_mpq(filename)
+                ):
+                    mod_files.append(filename)
+                elif low.endswith(".dll"):
+                    dlls.append(filename)
+                elif low.endswith(".zip"):
+                    addon_zips.append(filename)
+        except (OSError, ValueError, zipfile.BadZipFile) as exc:
+            messagebox.showerror("Import", str(exc))
+            return
+        if mod_files:
             self.show_tab("GameMods")
-            self.handle_dropped_mpqs(mpqs)
+            self.mods_panel.import_paths(mod_files)
         if dlls:
             self.show_tab("Tweaks")
             for dll in dlls:
                 self.install_custom_dll(dll)
-        if zips:
+        if addon_zips:
             self.show_tab("Addons")
-            self.install_dropped_addons(zips)
+            self.install_dropped_addons(addon_zips)
 
-    def handle_dropped_mpqs(self, files):
-        def process_files():
-            for f in files:
-                if f.lower().endswith(".mpq"):
-                    self.pending_mpqs.append((f, os.path.basename(f)))
-            self.msg_queue.put(("mpq_process_next", None))
-            
-        threading.Thread(target=process_files, daemon=True).start()
 
     def install_dropped_addons(self, zips):
         wow_dir = self.wow_dir.get().strip()
@@ -1299,81 +1265,6 @@ class OctoWowApp(BaseApp):
         ctk.CTkLabel(load_frame, text="Extracting and Installing Addons...", font=("Segoe UI", 16, "bold"), text_color=ACCENT_COLOR).pack()
         
         threading.Thread(target=worker, daemon=True).start()
-
-
-    def prompt_mpq_meta(self, filename, filepath, is_editing=False):
-        top = ctk.CTkToplevel(self)
-        top.title("Edit Mod Details" if is_editing else "New Game Mod Detected")
-        top.geometry("450x380")
-        top.resizable(False, False)
-        top.attributes("-topmost", True)
-        
-        x = self.winfo_x() + (self.winfo_width() // 2) - 225
-        y = self.winfo_y() + (self.winfo_height() // 2) - 190
-        top.geometry(f"+{x}+{y}")
-        top.grab_set()
-
-        frame = ctk.CTkFrame(top, fg_color=BG_COLOR, corner_radius=0)
-        frame.pack(fill="both", expand=True)
-        
-        ctk.CTkLabel(frame, text="🎨 Mod Details", font=("Segoe UI", 20, "bold"), text_color=ACCENT_COLOR).pack(pady=(20, 5))
-        ctk.CTkLabel(frame, text=f"File: {filename}", font=("Segoe UI", 12), text_color=TEXT_MUTED).pack(pady=(0, 20))
-        
-        meta = self.game_mods_meta.get(filename, {})
-        
-        ctk.CTkLabel(frame, text="Title:", font=("Segoe UI", 12, "bold"), text_color=TEXT_MAIN).pack(anchor="w", padx=30)
-        title_var = ctk.StringVar(value=meta.get("title", filename.replace(".mpq", "").replace("-", " ").title()))
-        ctk.CTkEntry(frame, textvariable=title_var, width=390, fg_color=SURFACE_COLOR, border_color=CARD_COLOR).pack(padx=30, pady=(5, 15))
-
-        ctk.CTkLabel(frame, text="Description:", font=("Segoe UI", 12, "bold"), text_color=TEXT_MAIN).pack(anchor="w", padx=30)
-        desc_box = ctk.CTkTextbox(frame, width=390, height=80, fg_color=SURFACE_COLOR, border_color=CARD_COLOR, border_width=2)
-        desc_box.pack(padx=30, pady=(5, 20))
-        desc_box.insert("1.0", meta.get("desc", ""))
-        
-        btn_frame = ctk.CTkFrame(frame, fg_color="transparent")
-        btn_frame.pack(fill="x", padx=30, side="bottom", pady=20)
-        
-        def save():
-            self.game_mods_meta[filename] = {"title": title_var.get().strip(), "desc": desc_box.get("1.0", "end").strip()}
-            self.save_all_state()
-            
-            if not is_editing:
-                target_path = os.path.join(self.wow_dir.get().strip(), "Data", filename)
-                try:
-                    shutil.copy2(filepath, target_path)
-                    if self.mpq_temp_dir in filepath:
-                        os.remove(filepath)
-                except Exception as e:
-                    messagebox.showerror("Error", f"Could not copy {filename} to Data folder.\n{e}")
-                    
-            top.grab_release()
-            top.destroy()
-            self.scan_game_mods()
-            if not is_editing: self.process_next_pending_mpq()
-
-        def cancel():
-            if not is_editing and self.mpq_temp_dir in filepath and os.path.exists(filepath):
-                try: os.remove(filepath)
-                except: pass
-            top.grab_release()
-            top.destroy()
-            if not is_editing: self.process_next_pending_mpq()
-
-        skip_text = "Cancel" if is_editing else "Skip / Cancel"
-        ctk.CTkButton(btn_frame, text=skip_text, fg_color=CARD_COLOR, hover_color="#2A2E3F", command=cancel, width=100).pack(side="left")
-        ctk.CTkButton(btn_frame, text="Save Mod", fg_color=SUCCESS_COLOR, hover_color="#059669", font=("Segoe UI", 12, "bold"), command=save).pack(side="right")
-
-    def process_next_pending_mpq(self):
-        if not self.pending_mpqs:
-            if os.path.exists(self.mpq_temp_dir): shutil.rmtree(self.mpq_temp_dir, ignore_errors=True)
-            return
-            
-        filepath, filename = self.pending_mpqs.pop(0)
-        if filename.lower() in BASE_MPQ_BLACKLIST:
-            self.process_next_pending_mpq()
-            return
-            
-        self.prompt_mpq_meta(filename, filepath, is_editing=False)
 
 
     # --- ADDON MANAGER TAB ---
@@ -2015,20 +1906,25 @@ oLink.Save
         if not self.validate_limits(): return False
 
         try:
-            self.clean_unselected_files(target_dir)
-            self.copy_base_files(target_dir)
-            self.configure_dxvk(target_dir)
-            self.configure_plugins(target_dir)
-            self.run_vanilla_tweaks(target_dir)
-            self.apply_corrupt_interface_bypass(target_dir)
-            self.apply_process_mitigations()
-            self.create_launcher_shortcut(target_dir)
+            with self.get_game_mod_store(target_dir).lock("applying client settings"):
+                self.validate_game_mod_requirements(target_dir)
+                self.apply_client_settings(target_dir)
             if not silent:
                 messagebox.showinfo("Success", "Installation and patching complete!\n\nYou can launch the game using the PLAY GAME button.")
             return True
-        except Exception as e:
-            messagebox.showerror("Installation Error", f"Failed to modify game files. Is the game currently running?\n\nDetails: {e}")
+        except Exception as exc:
+            messagebox.showerror("Installation Error", f"Failed to modify game files. Is the game currently running?\n\nDetails: {exc}")
             return False
+
+    def apply_client_settings(self, target_dir):
+        self.clean_unselected_files(target_dir)
+        self.copy_base_files(target_dir)
+        self.configure_dxvk(target_dir)
+        self.configure_plugins(target_dir)
+        self.run_vanilla_tweaks(target_dir)
+        self.apply_corrupt_interface_bypass(target_dir)
+        self.apply_process_mitigations()
+        self.create_launcher_shortcut(target_dir)
 
     def launch_game(self):
         target_dir = self.wow_dir.get().strip()
@@ -2036,6 +1932,17 @@ oLink.Save
             messagebox.showerror("Launch Error", "Valid WoW directory not found. Please set it in Game Settings.")
             return
             
+        try:
+            store = self.get_game_mod_store(target_dir)
+            if store.locked():
+                raise game_mods.ModError("Wait for the current manager operation to finish before launching WoW.")
+            if any(json.loads(path.read_text("utf-8"))["status"] == "applying"
+                   for path in store.home.glob("transactions/*/journal.json")):
+                raise game_mods.ModError("Recover the interrupted mod operation before launching WoW.")
+        except (game_mods.ModError, OSError, ValueError, KeyError) as exc:
+            messagebox.showerror("Launch Error", str(exc))
+            return
+
         vf_path = os.path.join(target_dir, "VanillaFixes.exe")
         target_exe = vf_path if os.path.exists(vf_path) else os.path.join(target_dir, "WoW.exe")
         
@@ -2074,8 +1981,6 @@ oLink.Save
                         messagebox.showerror("Update Failed", f"Failed to update: {folder}\n\nDetails:\n{err_msg}")
                     # Silently refresh the list to re-render the card with the new updated info
                     self.trigger_addon_scan(show_loading=False)
-                elif msg_type == "mpq_process_next":
-                    self.process_next_pending_mpq()
                 elif msg_type == "client_dl_progress":
                     pct, txt = data
                     self.progress_update.set(pct)

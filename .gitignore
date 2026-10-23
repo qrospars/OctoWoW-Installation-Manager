@@ -14,3 +14,8 @@ dist/
 __pycache__/
 *.pyc
 test/
+
+# Local manager state and development environments
+octowow_config.json
+.octowow-mods/
+.venv/

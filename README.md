@@ -1,23 +1,23 @@
 # OctoWoW Installation Manager
 
-A configuration, modding, and addon management tool for the OctoWoW (Vanilla 1.12.1) client. 
+A configuration, modding, and addon management tool for the OctoWoW (Vanilla 1.12.1) client.
 
 This tool provides a graphical interface to manage client settings, wraps `vanilla-tweaks.exe` for engine adjustments, deploys core `.dll` engine hooks, manages custom `.mpq` patches, and handles addon synchronization from GitHub or local archives.
 
 ---
 
-> **⚠️ Windows Defender / Antivirus Warning**  
+> **⚠️ Windows Defender / Antivirus Warning**
 > You may receive a warning from Windows Defender or other antivirus software when downloading or running this application. This is a standard **false positive** caused by two things:
 > 1. **Executable Patching:** The app uses `vanilla-tweaks.exe` to modify the engine limits of your `WoW.exe` file (creating `WoW_Tweaked.exe`). Antivirus software heavily scrutinizes any program that patches other executables.
-> 2. **App Compilation:** This application is bundled into a single `.exe` using PyInstaller, which is frequently flagged by heuristic scanners.  
-> 
+> 2. **App Compilation:** This application is bundled into a single `.exe` using PyInstaller, which is frequently flagged by heuristic scanners.
+>
 > *If the application is blocked or deleted, you may need to add it or your WoW folder to your antivirus exclusions. All source code is publicly available in this repository for full transparency.*
 
 ---
 
 ## Features
 * **Game Settings & Engine Adjustments:** Integrates `vanilla-tweaks.exe` to calculate aspect ratios and expand engine limits (FoV, render distance, ground clutter, and camera zoom). Automatically applies memory limit expansions (Large Address Aware), DEP mitigations, and interface corruption bypasses.
-* **Game Mods (MPQ Manager):** Automatically detects custom `.mpq` patches in the `Data` folder. Allows users to toggle mods on and off without deleting them, and edit custom titles/descriptions that save to the app's configuration.
+* **Game Mods (MPQ Manager):** Tracks multiple GitHub release or HTTPS manifest sources, imports local MPQ/ZIP mods, and verifies downloads before reviewed updates. Searchable cards include inline file lists, enable switches, per-file choices for non-HD mods, and confirmed removal. Existing unmanaged archives are visible in the inventory and remain untouched until explicitly imported. See [Game Mods](GAME_MODS.md) for source formats, recovery and HD limitations.
 * **Smart Addon Manager:** Scans the `Interface/AddOns` folder and uses the GitHub API to track and download the latest source code. It automatically locates `.toc` metadata and formats the folder names correctly so they load in-game. Supports batch updating and installing from local `.zip` files.
 * **Client Tweaks & Custom DLLs:** Provides toggles for 1.12 modifications including *VanillaFixes*, *UnitXP_SP3*, and the *WeirdUtils* suite, with options to pull the latest versions directly from GitHub. Users can also import and toggle their own custom `.dll` hooks. The app safely manages `dlls.txt` to preserve all custom and unmanaged background DLLs.
 * **BitTorrent Game Updater:** Integrates an `aria2c` engine to hash-check existing files and download missing or updated data directly into the game folder. Includes a pre-scan step for clear console feedback on file integrity before downloading begins.
@@ -37,13 +37,16 @@ Go to the **[Releases](../../releases)** tab on the right side of this GitHub pa
 ---
 
 ## For Developers: Building from Source
-This repository contains **only the UI source code (`OctoWow_Install_Manager.py`)**. It does not contain the third-party `.dll` payloads or executable patchers required to run the compiler. 
+This repository contains the application source and Game Mods modules. It does not contain the third-party `.dll` payloads or executable patchers required to run the compiler.
 
 ### Prerequisites
-1. Python 3.8+
-2. Install the required UI library: `pip install customtkinter`
-3. Install PyInstaller: `pip install pyinstaller`
-*(Note: standard library modules like `tkinter`, `urllib`, and `zipfile` are used for the rest of the application).*
+1. Windows and Python 3.10+ (validated with Python 3.12).
+2. Install the UI and build dependencies: `python -m pip install -r requirements-dev.txt`.
+
+Run `python -m unittest discover -s tests` for backend and Windows widget tests.
+The widget tests use disposable game fixtures and make no changes to an installed
+client. The test workflow runs without the third-party payloads; a complete
+executable build still requires the inputs below.
 
 ### Dependency Sources
 *Disclaimer: The links below point to the original repositories. If a link becomes inactive, you will need to source the binary from community archives.*
@@ -64,7 +67,7 @@ This repository contains **only the UI source code (`OctoWow_Install_Manager.py`
 *   **Nampower v4.2.0:** [Mod Source](https://gitea.com/avitasia/nampower) | [Addon Source](https://gitea.com/avitasia/NampowerSettings)
 
 **Quality of Life (WeirdUtils Suite):**
-*   **WeirdUtils:** [MarcelineVQ/WeirdUtils](https://codeberg.org/MarcelineVQ/WeirdUtils) 
+*   **WeirdUtils:** [MarcelineVQ/WeirdUtils](https://codeberg.org/MarcelineVQ/WeirdUtils)
     *(Includes: `worldmarkers.dll`, `minimapicons.dll`, `pngscreenshots.dll`, `logsessions.dll`, `customassets.dll`, `bigcursor.dll`, `weirdperformance.dll`, and `transmogfix.dll`)*
 *   **Vanilla-Autologin:** [MarcelineVQ/turtle-autologin](https://github.com/MarcelineVQ/turtle-autologin)
 
@@ -102,9 +105,13 @@ Before compiling, your workspace must be organized exactly as follows:
 ```
 
 ### Compiling
-Once your payload folder is populated, open your terminal in the root directory and compile using PyInstaller:
+Once the payload folder is populated, run from the project root:
 
-```cmd
-pyinstaller --noconsole --onefile --icon="PurpleWowLogo.ico" --hidden-import customtkinter --add-data "Payload;Payload" --add-data "vanilla-tweaks.exe;." --add-data "PurpleWowLogo.ico;." OctoWow_Install_Manager.py
+```powershell
+.\Build-GameMods.ps1
 ```
-This will generate the standalone executable inside the `dist` folder.
+
+Pass `-Python "C:\path\to\python.exe"` to select a specific interpreter. The script
+bundles the UI resources and Game Mods modules and generates the standalone
+executable inside `dist`. Payloads, patchers, personal configuration and generated
+executables are not part of the source contribution.
